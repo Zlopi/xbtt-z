@@ -112,25 +112,6 @@ int Cserver::run()
 				return 1;
 			}
 		}
-
-		/*
-		BOOST_FOREACH(Cconfig::t_listen_ports::const_reference i, m_config.m_listen_ports)
-		{
-			Csocket l;
-			if (l.open(SOCK_DGRAM) == INVALID_SOCKET)
-				std::cerr << "socket failed: " << Csocket::error2a(WSAGetLastError()) << std::endl;
-			else if (l.setsockopt(SOL_SOCKET, SO_REUSEADDR, true),
-				l.bind(j, htons(i)))
-				std::cerr << "bind failed: " << Csocket::error2a(WSAGetLastError()) << std::endl;
-			else
-			{
-				lu.push_back(Cudp_listen_socket(this, l));
-				if (!m_epoll.ctl(EPOLL_CTL_ADD, l, EPOLLIN | EPOLLPRI | EPOLLERR | EPOLLHUP, &lu.back()))
-					continue;
-			}
-			return 1;
-		}
-		*/
 	}
 	// TorrentPier end
 
@@ -962,16 +943,13 @@ void Cserver::read_db_users()
 		return;
 	try
 	{
-		// TorrentPier begin
 		Csql_query q(m_database, "select ?, auth_key, ?, ?, ? from ?");
-		// TorrentPier end
-
+		// Append
 		q.p_name(column_name(column_users_uid));
-		q.p_name(column_name(column_users_can_leech));
-		q.p_name(column_name(column_users_torrents_limit));
-		// VIP begin
-		q.p_name(column_name(column_users_vip_status));
-		// VIP end
+		q.p(column_name(column_users_can_leech));
+		q.p(column_name(column_users_torrents_limit));
+		q.p(column_name(column_users_vip_status));
+		
 		q.p_name(table_name(table_users));
 		Csql_result result = q.execute();
 		BOOST_FOREACH(t_users::reference i, m_users)
