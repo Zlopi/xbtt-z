@@ -946,9 +946,9 @@ void Cserver::read_db_users()
 		Csql_query q(m_database, "select ?, auth_key, ?, ?, ? from ?");
 		// Append
 		q.p_name(column_name(column_users_uid));
-		q.p(column_name(column_users_can_leech));
-		q.p(column_name(column_users_torrents_limit));
-		q.p(column_name(column_users_vip_status));
+		q.p_raw(column_name(column_users_can_leech));
+		q.p_raw(column_name(column_users_torrents_limit));
+		q.p_raw(column_name(column_users_vip_status));
 		
 		q.p_name(table_name(table_users));
 		Csql_result result = q.execute();
