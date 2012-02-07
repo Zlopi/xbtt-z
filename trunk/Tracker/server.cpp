@@ -417,8 +417,6 @@ std::string Cserver::insert_peer(const Ctracker_input& v, bool udp, t_user* user
 			}
 
 			downloaded_db = (m_config.m_free_leech || file.dl_percent < 0 || user->vip_status > 0) ? 0 : (downloaded*file.dl_percent/100);
-			// Fix release
-			rel = (user->uid==file.tor_poster_id) ? 1 : 0;
 
 			if (user->uid == file.tor_poster_id)
 				rel = uploaded;
@@ -570,7 +568,7 @@ std::string Cserver::t_file::select_peers(const Ctracker_input& ti) const
 	BOOST_FOREACH(t_peers::const_reference i, peers)
 	{
 		// TorrentPier begin
-		if (((!ti.m_left || ti.m_event == Ctracker_input::e_paused) && i.second.left)
+		if (((!ti.m_left || ti.m_event == Ctracker_input::e_paused) && i.second.left  != e_downloader)
 			|| !i.second.xbt_error_empty || !i.second.host_
 			|| boost::equals(i.first, ti.m_peer_id))
 			continue;
@@ -905,19 +903,20 @@ void Cserver::read_db_files_sql()
 				+ column_name(column_files_seeders) + " = 0, speed_up=0, speed_down=0");
 		else if (m_config.m_auto_register)
 			return;
-		q = "select rpad(info_hash,20,' '), ?, ?, reg_time, size, attach_id, topic_id, poster_id, case tor_type when 1 then 0 when 2 then 50 else 100 end from ? where reg_time >= ? OR tor_type > 0";
+		q = "select rpad(bt.info_hash,20,' '), bt.?, bt.?, bt.reg_time, bt.size, bt.attach_id, bt.topic_id, bt.poster_id, ? from ? bt where reg_time >= ?";
 		q.p_name(column_name(column_files_completed));
 		q.p_name(column_name(column_files_fid));
+		q.p_raw(column_name(column_files_dl_percent));
 		q.p_name(table_name(table_files));
 		q.p(m_fid_end);
 		Csql_result result = q.execute();
 		for (Csql_row row; row = result.fetch_row(); )
 		{
 			m_fid_end = std::max(m_fid_end, static_cast<int>(row[3].i()) + 1);
-			if (row[0].size() != 20)
+			if (row[0].size() != 20 || m_files.find(row[0].s()) != m_files.end())
 				continue;
 			t_file& file = m_files[row[0].s()];
-			if (file.fid && file.dl_percent == row[8].i())
+			if (file.fid)
 				continue;
 			file.completed = row[1].i();
 			file.dirty = false;
@@ -943,13 +942,13 @@ void Cserver::read_db_users()
 		return;
 	try
 	{
-		Csql_query q(m_database, "select ?, auth_key, ?, ?, ? from ?");
+		Csql_query q(m_database, "select ?, auth_key, ?, ?, ?, (select user_active from bb_users where user_id=?.user_id) from ?");
 		// Append
 		q.p_name(column_name(column_users_uid));
 		q.p_raw(column_name(column_users_can_leech));
 		q.p_raw(column_name(column_users_torrents_limit));
 		q.p_raw(column_name(column_users_vip_status));
-		
+		q.p_name(table_name(table_users));
 		q.p_name(table_name(table_users));
 		Csql_result result = q.execute();
 		BOOST_FOREACH(t_users::reference i, m_users)
@@ -971,7 +970,7 @@ void Cserver::read_db_users()
 			user.torrents_limit = row[3].i();
 			user.peers_limit = 2; // # of IP addresses user can leech from
 			user.can_leech = row[2].i();
-			user.user_active = row[4].i();
+			user.user_active = row[5].i();
 			if (row[1].size()) {
 				user.passkey = row[1].s();
 				m_users_torrent_passes[user.passkey] = &user;
@@ -1090,10 +1089,9 @@ void Cserver::write_db_users()
 				+ m_files_users_updates_buffer
 				+ " on duplicate key update"
 				+ "  topic_id = values(topic_id),"
-				+ "  peer_id = values(peer_id),"
+				+ "  peer_hash = values(peer_hash),"
 				+ "  user_id = values(user_id),"
-				+ "  ip = values(ip),"
-				+ "  ipv6 = values(ipv6),"
+				+ "  ip = values(ip), ipv6 = values(ipv6),"
 				+ "  port = values(port),"
 				+ "  uploaded = uploaded + values(uploaded),"
 				+ "  downloaded = downloaded + values(downloaded),"
@@ -1124,6 +1122,9 @@ void Cserver::write_db_users()
 				+ "  u_up_total = u_up_total + values(u_up_total),"
 				+ "  u_up_release = u_up_release + values(u_up_release),"
 				+ "  u_up_bonus = u_up_bonus + values(u_up_bonus),"
+				// speed
+				+ "  max_up_speed = GREATEST(max_up_speed, values(max_up_speed)),"
+				+ "  max_down_speed = GREATEST(max_down_speed, values(max_down_speed)),"
 				// today
 				+ "  u_down_today = u_down_today + values(u_down_total),"
 				+ "  u_up_today = u_up_today + values(u_up_total),"
