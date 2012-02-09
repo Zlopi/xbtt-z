@@ -415,14 +415,14 @@ std::string Cserver::insert_peer(const Ctracker_input& v, bool udp, t_user* user
 			{
 				ul_gdc = i->ul_gdc;
 			}
-
+			
 			downloaded_db = (m_config.m_free_leech || file.dl_percent < 0 || user->vip_status > 0) ? 0 : (downloaded*file.dl_percent/100);
-
+			
 			if (user->uid == file.tor_poster_id)
 				rel = 1;
 			else if (!v.m_left && file.seeders == 1)
 				bonus = 1;
-
+			
 			// TorrentPier: bb_bt_users_dl_status
 			int new_status = v.m_left ? 0 : 1;
 			if (user->uid == file.tor_poster_id) new_status = -1;
@@ -465,9 +465,9 @@ std::string Cserver::insert_peer(const Ctracker_input& v, bool udp, t_user* user
 		q.p(ntohs(v.m_port));                                           // port smallint(5) unsigned NOT NULL default '0'
 		q.p(uploaded);                                                  // uploaded bigint(20) unsigned NOT NULL default '0'
 		q.p(downloaded_db);                                             // downloaded bigint(20) unsigned NOT NULL default '0'
-		q.p(v.m_left ? (v.m_left>=file.tor_size ? 0 : ((file.tor_size-v.m_left)*100/file.tor_size)) : v.m_uploaded); // complete_percent bigint(20) unsigned NOT NULL default '0'
 		q.p(v.m_left && v.m_event != Ctracker_input::e_paused ? 0 : 1); // seeder tinyint(1) NOT NULL default '0'
 		q.p(rel);                                                       // releaser tinyint(1) NOT NULL DEFAULT '0'
+		q.p(v.m_left ? (v.m_left>=file.tor_size ? 0 : ((file.tor_size-v.m_left)*100/file.tor_size)) : v.m_uploaded); // complete_percent bigint(20) unsigned NOT NULL default '0'
 		q.p(upspeed);                                                   // speed_up mediumint(8) unsigned NOT NULL default '0'
 		q.p(downspeed);                                                 // speed_down mediumint(8) unsigned NOT NULL default '0'
 		q.p(time());                                                    // update_time int(11) NOT NULL default '0',
