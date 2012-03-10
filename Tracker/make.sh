@@ -9,6 +9,7 @@ g++ $@ -DNDEBUG -I /usr/local/include -I ../misc -I . -O3 -o xbt_tracker \
 	../misc/socket.cpp \
 	../misc/virtual_binary.cpp \
 	../misc/xcc_z.cpp \
+	md5.cpp \
 	config.cpp \
 	connection.cpp \
 	epoll.cpp \

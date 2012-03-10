@@ -12,6 +12,7 @@
 #include "transaction.h"
 
 // TorrentPier begin
+#include "md5.h"
 #ifdef WIN32
 #include <Ws2tcpip.h>
 #endif
