@@ -453,12 +453,13 @@ std::string Cserver::insert_peer(const Ctracker_input& v, bool udp, t_user* user
 		if( cleanup_interval < min_cleanup ) cleanup_interval = min_cleanup;
 
 		// TorrentPier
-		std::string port_st, ip_st;
+		std::string port_st, ip_st, peer_hash;
 		port_st = ntohs(v.m_port);
 		ip_st = hex_encode(8, ntohl(v.m_ipa));
+		peer_hash = md5(v.m_info_hash+v.m_passkey+port_st+ip_st);
 
 		q.p(file.fid);                                                  // topic_id mediumint(8) unsigned NOT NULL default '0'
-		q.p(v.m_peer_id);                                               // peer_id char(20) binary NOT NULL default ''
+		q.p(peer_hash);                                               // peer_id char(20) binary NOT NULL default ''
 		q.p(user->uid);                                                 // user_id mediumint(9) NOT NULL default '0'
 		q.p(hex_encode(8, ntohl(v.m_ipa)));;                            // ip char(8) binary NOT NULL default '0'
 		q.p(const_memory_range(v.m_ipv6bin, ipv6set ? 16 : 0));         // ipv6 varchar(32)
