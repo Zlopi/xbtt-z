@@ -73,6 +73,9 @@ public:
 	std::string m_column_users_vip_status;
 	// VIP end
 
+	// X-Real-IP
+	int m_set_real_ip;
+
 	int m_read_db_expeers_interval;
 
 
