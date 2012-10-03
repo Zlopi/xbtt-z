@@ -30,4 +30,6 @@ private:
 	Cvirtual_binary m_write_b;
 	const_memory_range m_r;
 	memory_range m_w;
+	// X-Real-IP
+	string m_xrealip;
 };

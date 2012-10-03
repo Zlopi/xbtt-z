@@ -90,6 +90,10 @@ int Cconnection::recv()
 				read(std::string(&m_read_b.front(), reinterpret_cast<const char*>(a) - &m_read_b.front()));
 				m_state = 1;
 			case 1:
+				if (boost::istarts_with(line, "x-real-ip: ")) {
+				    m_xrealip = line.substr(11);
+				    m_a.sin_addr.s_addr=inet_addr(m_xrealip.c_str());
+				}
 			case 3:
 				m_state += *a == '\n' ? 2 : 1;
 				break;
@@ -178,6 +182,10 @@ void Cconnection::read(const std::string& v)
 		sockaddr_in *b = reinterpret_cast<sockaddr_in*>(&m_a);
 		if (!ti.m_ipa || !is_private_ipa(b->sin_addr.s_addr))
 			ti.m_ipa = b->sin_addr.s_addr;
+		// X-Real-IP
+		if (m_server->config().m_set_real_ip == b->sin_addr.s_addr) {
+			ti.m_ipa = inet_addr(m_a.m_xrealip.c_str());
+		}
 	} else if (m_a.ss_family == AF_INET6) {
 		sockaddr_in6 *b = reinterpret_cast<sockaddr_in6*>(&m_a);
 		ti.m_ipv6set = true;

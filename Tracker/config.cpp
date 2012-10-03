@@ -62,6 +62,9 @@ void Cconfig::fill_maps(const Cconfig* v)
 			"read_files_interval", &m_read_files_interval, 60,
 			// TorrentPier end
 
+			// X-Real-IP
+			"set_real_ip", &m_set_real_ip, 0,
+
 			"read_db_expeers_interval", &m_read_db_expeers_interval, 30,
 			NULL
 		};
