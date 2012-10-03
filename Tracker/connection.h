@@ -2,6 +2,7 @@
 
 #include "client.h"
 #include <vector>
+#include <string>
 #include <xbt/virtual_binary.h>
 
 class Cserver;
@@ -30,6 +31,7 @@ private:
 	Cvirtual_binary m_write_b;
 	const_memory_range m_r;
 	memory_range m_w;
+
 	// X-Real-IP
-	string m_xrealip;
+	std::string m_xrealip;
 };
