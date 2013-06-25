@@ -185,7 +185,7 @@ void Cconnection::read(const std::string& v)
 		if (!ti.m_ipa || !is_private_ipa(b->sin_addr.s_addr))
 			ti.m_ipa = b->sin_addr.s_addr;
 		// X-Real-IP
-		if (inet_addr(m_server->config().m_set_real_ip.c_str()) == ntohl(b->sin_addr.s_addr))
+		if (inet_addr(m_server->config().m_set_real_ip.c_str()) == b->sin_addr.s_addr)
 		    ti.m_ipa  = inet_addr(m_xrealip.c_str());
 	} else if (m_a.ss_family == AF_INET6) {
 		sockaddr_in6 *b = reinterpret_cast<sockaddr_in6*>(&m_a);
