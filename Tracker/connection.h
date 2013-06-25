@@ -27,11 +27,14 @@ private:
 
 	time_t m_ctime;
 	int m_state;
-	boost::array<char, 4 << 10> m_read_b;
-	Cvirtual_binary m_write_b;
-	const_memory_range m_r;
-	memory_range m_w;
-
+	typedef std::vector<char> t_read_b;
+	typedef std::vector<char> t_write_b;
+	t_write_b m_write_b;
+	t_read_b m_read_b;
+	int m_r;
+	int m_w;
+	char* m_p;
 	// X-Real-IP
 	std::string m_xrealip;
+	std::string m_announce;
 };

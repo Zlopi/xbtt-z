@@ -1,3 +1,4 @@
+#include <boost/algorithm/string.hpp>
 #include "stdafx.h"
 #include "connection.h"
 
@@ -26,14 +27,13 @@ Cconnection::Cconnection(Cserver* server, const Csocket& s, const sockaddr_stora
 	m_ctime = server->time();
 
 	m_state = 0;
-	m_r.clear();
-	m_w = m_read_b;
+	m_w = 0;
 }
 
 int Cconnection::pre_select(fd_set* fd_read_set, fd_set* fd_write_set)
 {
 	FD_SET(m_s, fd_read_set);
-	if (!m_r.empty())
+	if (!m_write_b.empty())
 		FD_SET(m_s, fd_write_set);
 	return m_s;
 }
@@ -43,96 +43,96 @@ int Cconnection::post_select(fd_set* fd_read_set, fd_set* fd_write_set)
 	return FD_ISSET(m_s, fd_read_set) && recv()
 		|| FD_ISSET(m_s, fd_write_set) && send()
 		|| m_server->time() - m_ctime > 10
-		|| m_state == 5 && m_r.empty();
+		|| m_state == 5 && m_write_b.empty();
 }
 
 int Cconnection::recv()
 {
-	int r = m_s.recv(m_w);
-	if (!r)
-	{
-		m_state = 5;
-		return 0;
-	}
-	if (r == SOCKET_ERROR)
-	{
-		int e = WSAGetLastError();
-		switch (e)
-		{
+    if (!m_read_b.size()) m_read_b.resize(4 << 10);
+    for (int r; r = m_s.recv(&m_read_b.front() + m_w, m_read_b.size() - m_w); ) {
+	if (r == SOCKET_ERROR) {
+	    int e = WSAGetLastError();
+	    switch (e) {
 		case WSAECONNABORTED:
 		case WSAECONNRESET:
-			return 1;
+		    if (m_state > 0 && m_state < 5) read(m_announce);
+		    return 1;
 		case WSAEWOULDBLOCK:
-			return 0;
-		}
-		std::cerr << "recv failed: " << Csocket::error2a(e) << std::endl;
+		case WSAEINPROGRESS:
+                    return 0;
+	    }
+	    std::cerr << "recv failed: " << Csocket::error2a(e) << std::endl;
+	    if (m_state > 0 && m_state < 5) read(m_announce);
 		return 1;
-	}
-	if (m_state == 5)
-		return 0;
-	const unsigned char* a = m_w;
+        }
+	if (m_state == 5) return 0;
+	char* a = &m_read_b.front() + m_w;
+	if (!m_w) m_p = a;
 	m_w += r;
 	int state;
 	std::string line;
-	do
-	{
-		state = m_state;
-		while (a < m_w && *a != '\n' && *a != '\r')
-		{
-			a++;
-			if (m_state)
-				m_state = 1;
+	do {
+	    state = m_state;
+	    while (a < &m_read_b.front() + m_w && *a != '\n' && *a != '\r') {
+		a++;
+		if (m_state) m_state = 1;
+	    }
+	    if (a < &m_read_b.front() + m_w) {
+		switch (m_state) {
+		    case 0:
+			m_announce = std::string(&m_read_b.front(), a);
+			m_state = 1;
+			m_state += *a == '\n' ? 2 : 1;
+			break;
+		    case 1:
+			line = std::string(m_p, m_p+32 > a ? a : m_p+32);
+#ifndef NDEBUG
+	std::cerr << "Header: " << line << std::endl;
+#endif
+			// X-Real-IP
+			if (boost::istarts_with(line, "x-real-ip: ")) m_xrealip = line.substr(11);
+		    case 3:
+			m_state += *a == '\n' ? 2 : 1;
+			break;
+		    case 2:
+		    case 4:
+			m_state++;
+			break;
 		}
-		if (a < m_w)
-		{
-			switch (m_state)
-			{
-			case 0:
-				read(std::string(&m_read_b.front(), reinterpret_cast<const char*>(a) - &m_read_b.front()));
-				m_state = 1;
-			case 1:
-				if (m_a.ss_family == AF_INET) {
-				    line = std::string(std::string(&m_read_b.front(), reinterpret_cast<const char*>(a) - &m_read_b.front()));
-				    if (boost::istarts_with(line, "x-real-ip: "))
-					m_xrealip = line.substr(11);
-				}
-			case 3:
-				m_state += *a == '\n' ? 2 : 1;
-				break;
-			case 2:
-			case 4:
-				m_state++;
-				break;
-			}
-			a++;
-		}
+		a++;
+		if (*a == '\r') a++;
+		m_p = a;
+	    }
 	}
-	while (state != m_state);
-	return 0;
+        while (state != m_state);
+	    if (m_state == 5) {
+		read(m_announce);
+		return 0;
+	    }
+    }
+    return 0;
 }
 
-int Cconnection::send()
-{
-	if (m_r.empty())
-		return 0;
-	int r = m_s.send(m_r);
-	if (r == SOCKET_ERROR)
-	{
+int Cconnection::send() {
+	for (int r; !m_write_b.empty() && (r = m_s.send(&m_write_b.front() + m_r, m_write_b.size() - m_r)); ) {
+	    if (r == SOCKET_ERROR) {
 		int e = WSAGetLastError();
-		switch (e)
-		{
-		case WSAECONNABORTED:
-		case WSAECONNRESET:
+		switch (e) {
+		    case WSAECONNABORTED:
+		    case WSAECONNRESET:
 			return 1;
-		case WSAEWOULDBLOCK:
+		    case WSAEWOULDBLOCK:
 			return 0;
 		}
 		std::cerr << "send failed: " << Csocket::error2a(e) << std::endl;
 		return 1;
-	}
-	m_r += r;
-	if (m_r.empty())
+	    }
+	    m_r += r;
+	    if (m_r == m_write_b.size()) {
 		m_write_b.clear();
+		break;
+	    }
+	}
 	return 0;
 }
 
@@ -185,7 +185,7 @@ void Cconnection::read(const std::string& v)
 		if (!ti.m_ipa || !is_private_ipa(b->sin_addr.s_addr))
 			ti.m_ipa = b->sin_addr.s_addr;
 		// X-Real-IP
-		if (m_server->config().m_set_real_ip == ntohl(b->sin_addr.s_addr))
+		if (inet_addr(m_server->config().m_set_real_ip.c_str()) == ntohl(b->sin_addr.s_addr))
 		    ti.m_ipa  = inet_addr(m_xrealip.c_str());
 	} else if (m_a.ss_family == AF_INET6) {
 		sockaddr_in6 *b = reinterpret_cast<sockaddr_in6*>(&m_a);
@@ -289,52 +289,17 @@ void Cconnection::read(const std::string& v)
 		}
 	}
 	h += "\r\n";
-#ifdef WIN32
-	m_write_b.resize(h.size() + s.size());
-	memcpy(m_write_b.data_edit(), h.data(), h.size());
-	s.read(m_write_b.data_edit() + h.size());
-	int r = m_s.send(m_write_b);
-#else
-	boost::array<iovec, 2> d;
-	d[0].iov_base = const_cast<char*>(h.data());
-	d[0].iov_len = h.size();
-	d[1].iov_base = const_cast<unsigned char*>(s.data());
-	d[1].iov_len = s.size();
-	msghdr m;
-	m.msg_name = NULL;
-	m.msg_namelen = 0;
-	m.msg_iov = const_cast<iovec*>(d.data());
-	m.msg_iovlen = d.size();
-	m.msg_control = NULL;
-	m.msg_controllen = 0;
-	m.msg_flags = 0;
-	int r = sendmsg(m_s, &m, MSG_NOSIGNAL);
-#endif
-	if (r == SOCKET_ERROR)
-	{
-		if (WSAGetLastError() != WSAECONNRESET)
-			std::cerr << "send failed: " << Csocket::error2a(WSAGetLastError()) << std::endl;
-	}
-	else if (r != h.size() + s.size())
-	{
-#ifndef WIN32
-		if (r < h.size())
-		{
-			m_write_b.resize(h.size() + s.size());
-			memcpy(m_write_b.data_edit(), h.data(), h.size());
-			s.read(m_write_b.data_edit() + h.size());
-		}
-		else
-		{
-			m_write_b = s;
-			r -= h.size();
-		}
-#endif
-		m_r = m_write_b;
-		m_r += r;
-	}
-	if (m_r.empty())
-		m_write_b.clear();
+	Cvirtual_binary d;
+	memcpy(d.write_start(h.size() + s.size()), h.data(), h.size());
+	s.read(d.data_edit() + h.size());
+	int r = m_s.send(d, d.size());
+	if (r == SOCKET_ERROR) 
+	    std::cerr << "send failed: " << Csocket::error2a(WSAGetLastError()) << std::endl;
+	else if (r != d.size()) {
+		m_write_b.resize(d.size() - r);
+		memcpy(&m_write_b.front(), d + r, d.size() - r);
+		m_r = 0;
+        }
 }
 
 void Cconnection::process_events(int events)
