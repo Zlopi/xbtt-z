@@ -118,9 +118,9 @@ public:
 	int getsockopt(int level, int name, int& v);
 	int listen();
 	const Csocket& open(int t, bool blocking = false);
-	int recv(memory_range) const;
+	int recv(void*, int) const;
 	int recvfrom(memory_range, sockaddr* a, socklen_t* cb_a) const;
-	int send(const_memory_range) const;
+	int send(const void*, int) const;
 	int sendto(const_memory_range, const sockaddr* a, socklen_t cb_a) const;
 	int setsockopt(int level, int name, const void* v, int cb_v);
 	int setsockopt(int level, int name, int v);
