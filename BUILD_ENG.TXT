@@ -7,5 +7,3 @@ Download click here: http://www.microsoft.com/downloads/details.aspx?displaylang
 
     [*] Boost v1.40.0+ (includes) (http://www.boost.org/users/download/)
     [*] MySQL (includes, header) files & & Libraries (libs) (Library in the folder "/xbtt/[LIB]/mysql-5.1.39_(libs)/")
-
-With best regards, Denis (Pandora) [ICQ: 411-672].
