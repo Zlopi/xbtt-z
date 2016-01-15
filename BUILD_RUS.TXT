@@ -7,5 +7,3 @@
 
    [*] Boost v1.40.0+ (includes) ( http://www.boost.org/users/download/ )
    [*] MySQL (includes,header) files && Libraries (libs)  ( библиотеки в папке "/xbtt/[LIB]/mysql-5.1.39_(libs)/" )
-
-С лучшими пожеланиями, Денис (Pandora) [ICQ: 411-672].
